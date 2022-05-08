@@ -1,0 +1,124 @@
+<!--
+ Copyright (C) 2020 Fondazione Istituto Italiano di Tecnologia (IIT)
+ All Rights Reserved.
+-->
+
+<scxml
+    xmlns="http://www.w3.org/2005/07/scxml"
+    version="1.0"
+    name="FetchSkillStateMachine"
+    initial="idle"
+    datamodel="cplusplus:FetchSkillDataModel:FetchSkillDataModel.h"
+    xmlns:scope="http://www.scope.org/scope"
+    xmlns:scope_yarp="http://www.scope.org/scope_yarp"
+>
+
+<datamodel>
+
+<!--  Services:  -->
+
+    <data id="armService"
+          scope_yarp:service_type="ArmService"
+          scope_yarp:connect_type="tcp+send.portmonitor2+file.ArmService+type.dll"
+          scope_yarp:thrift_protocol="Arm"
+          scope_yarp:service_function="level"
+          scope_yarp:port_name_client_attribute="default"
+          scope_yarp:port_name_server="/ArmComponent"
+          />
+
+          <!--  Attributes:  -->
+
+    <data id="is_ok"
+          scope:cpp_type="bool"
+          expr="false"
+          scope:init_source="initialize_inside_header"
+          />
+</datamodel>
+
+
+    <state id="idle" scope:bt_status="SKILL_IDLE">
+        <transition event="CMD_START" target="pregrasp" />
+    </state>
+
+    <state id="pregrasp" scope:bt_status="SKILL_RUNNING">
+        <onentry>
+            <script>
+            qDebug() &lt;&lt; "calling armService.preGrasp()";
+            is_ok = armService.preGrasp();
+            qDebug() &lt;&lt; "armService.preGrasp() returned " &lt;&lt; is_ok;
+            QTimer::singleShot(0, stateMachine(), [=](){
+                stateMachine()->submitEvent(is_ok ? "PREGRASP_OK" : "PREGRASP_KO");
+            });
+        </script>
+    </onentry>
+    <transition event="PREGRASP_OK" target="extract" />
+    <transition event="PREGRASP_KO" target="failure" />
+    </state>
+
+    <state id="extract" scope:bt_status="SKILL_RUNNING">
+        <onentry>
+            <script>
+            is_ok = armService.extractHand();
+            QTimer::singleShot(0, stateMachine(), [=](){
+                stateMachine()->submitEvent((is_ok) ? "EXTRACT_OK" : "EXTRACT_KO");
+            });
+        </script>
+    </onentry>
+    <transition event="EXTRACT_OK" target="open" />
+    <transition event="EXTRACT_KO" target="failure" />
+    </state>
+
+    <state id="open" scope:bt_status="SKILL_RUNNING">
+        <onentry>
+            <script>
+            is_ok = armService.openHand();
+            QTimer::singleShot(0, stateMachine(), [=](){
+                stateMachine()->submitEvent((is_ok) ? "OPEN_OK" : "OPEN_KO");
+            });
+        </script>
+    </onentry>
+    <transition event="OPEN_OK" target="grasp" />
+    <transition event="OPEN_KO" target="failure" />
+    </state>
+
+    <state id="grasp" scope:bt_status="SKILL_RUNNING">
+        <onentry>
+            <script>
+            armService.closeHand();
+            is_ok = armService.hasGrasped();
+            QTimer::singleShot(0, stateMachine(), [=](){
+                stateMachine()->submitEvent((is_ok) ? "GRASP_OK" : "GRASP_KO");
+            });
+        </script>
+    </onentry>
+    <transition event="GRASP_OK" target="retract" />
+    <transition event="GRASP_KO" target="open" />
+    </state>
+
+    <state id="retract" scope:bt_status="SKILL_RUNNING">
+        <onentry>
+            <script>
+            is_ok = armService.retractHand();
+
+
+            QTimer::singleShot(0, stateMachine(), [=](){
+                stateMachine()->submitEvent((is_ok) ? "RETRACT_OK" : "RETRACT_KO");
+            });
+        </script>
+    </onentry>
+    <transition event="RETRACT_OK" target="success" />
+    <transition event="RETRACT_KO" target="failure" />
+    </state>
+
+
+
+
+    <state id="success" scope:bt_status="SKILL_SUCCESS">
+        <transition event="CMD_OK" target="idle" />
+    </state>
+
+    <state id="failure" scope:bt_status="SKILL_FAILURE">
+        <transition event="CMD_OK" target="idle" />
+
+    </state>
+</scxml>
