@@ -1,0 +1,76 @@
+<!--
+ Copyright (C) 2020 Fondazione Istituto Italiano di Tecnologia (IIT)
+ All Rights Reserved.
+-->
+
+<scxml
+    xmlns="http://www.w3.org/2005/07/scxml"
+    version="1.0"
+    name="TargetMonitorStateMachine"
+    initial="idle"
+    datamodel="ecmascript"
+>
+
+  <datamodel>
+    <data id="tickCounter" expr="0"/>
+    <data id="batteryLevel" expr="0.0"/>
+
+    <!-- constants -->
+    <data id="navigationTarget" expr="'kitchen'"/>
+    <data id="tickCounterTheta" expr="100"/>
+    <data id="batteryLevelFull" expr="99"/>
+  </datamodel>
+
+  <!-- I -->
+  <state id="idle">
+    <onentry>
+      <log label="TargetMonitor/idle" expr="'tickCounter: ' + tickCounter"/>
+    </onentry>
+    <transition event="destinationChanged" cond="_event.data.destination == navigationTarget" target="waitForBatteryLevelState" />
+  </state>
+
+  <!-- I2 -->
+  <state id="waitForBatteryLevelState">
+    <onentry>
+      <log label="TargetMonitor/waitForBatteryLevelState" expr="'tickCounter: ' + tickCounter"/>
+    </onentry>
+    <transition event="batteryLevelChanged" target="checkBatteryLevelState">
+      <assign location="batteryLevel" expr="_event.data.level"/>
+    </transition>
+  </state>
+
+  <state id="warning">
+    <!-- C1 + S -->
+    <state id="checkBatteryLevelState">
+      <onentry>
+        <log label="TargetMonitor/checkBatteryLevelState" expr="'tickCounter: ' + tickCounter"/>
+      </onentry>
+      <transition cond="batteryLevel &lt; batteryLevelFull" target="idle" />
+      <transition cond="batteryLevel &gt;= batteryLevelFull" target="waitForTickState">
+        <assign location="tickCounter" expr="tickCounterTheta"/>
+      </transition>
+    </state>
+
+    <!-- C -->
+    <state id="waitForTickState">
+      <onentry>
+        <log label="TargetMonitor/waitForTickState" expr="'tickCounter: ' + tickCounter"/>
+      </onentry>
+      <transition event="tick" target="checkTickCounterState" />
+      <transition event="destinationReached" cond="_event.data.destination.localeCompare(navigationTarget)" target="idle" />
+    </state>
+
+    <!-- T + D -->
+    <state id="checkTickCounterState">
+      <transition cond="tickCounter &gt; 0" target="waitForTickState">
+        <assign location="tickCounter" expr="tickCounter - 1"/>
+      </transition>
+      <transition cond="tickCounter &lt;= 0" target="failure" />
+    </state>
+
+  </state> <!-- warning -->
+
+  <!-- Err -->
+  <state id="failure" />
+
+</scxml>

@@ -1,0 +1,10 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+    <file>monitor.qml</file>
+    <file>MonitorDelegate.qml</file>
+    <file>BatteryLevelMonitor.scxml</file>
+    <file>DestinationMonitor.scxml</file>
+    <file>TargetMonitor.scxml</file>
+    <file>GraspMonitor.scxml</file>
+</qresource>
+</RCC>
